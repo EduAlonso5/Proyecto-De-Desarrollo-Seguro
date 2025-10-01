@@ -2,12 +2,290 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Angular</title>
+  <title>PrimerProyecto</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <!-- ✅ AGREGAR FONT AWESOME CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+        crossorigin="anonymous" />
 </head>
 <body>
   <app-root></app-root>
 </body>
+</html>
+    <script>
+        // Elementos del DOM
+        const tabs = document.querySelectorAll('.tab');
+        const formContainers = document.querySelectorAll('.form-container');
+        
+        // Configuración
+        let API_URL = 'http://localhost:8080/api';
+        let JWT_SECRET = 'mi_secreto_jwt';
+        
+        // Cambio de pestañas
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                
+                tabs.forEach(t => t.classList.remove('active'));
+                formContainers.forEach(f => f.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(`${tabId}-form`).classList.add('active');
+            });
+        });
+        
+        // Guardar configuración
+        document.getElementById('save-config').addEventListener('click', function() {
+            API_URL = document.getElementById('api-url').value;
+            JWT_SECRET = document.getElementById('jwt-secret').value;
+            
+            showSuccess('config-success', 'Configuración guardada correctamente');
+        });
+        
+        // Función para mostrar errores
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+        
+        // Función para ocultar errores
+        function hideError(elementId) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.style.display = 'none';
+        }
+        
+        // Función para mostrar éxito
+        function showSuccess(elementId, message) {
+            const successElement = document.getElementById(elementId);
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            
+            setTimeout(() => {
+                successElement.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Función para mostrar loading
+        function setLoading(button, isLoading) {
+            const text = button.querySelector(':scope > span:first-child');
+            const loading = button.querySelector(':scope > span:last-child');
+            
+            if (isLoading) {
+                text.style.display = 'none';
+                loading.style.display = 'inline';
+                button.disabled = true;
+            } else {
+                text.style.display = 'inline';
+                loading.style.display = 'none';
+                button.disabled = false;
+            }
+        }
+        
+        // Función para mostrar respuesta del servidor
+        function showResponse(containerId, data) {
+            const container = document.getElementById(containerId);
+            const pre = container.querySelector('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            container.style.display = 'block';
+        }
+        
+        // Función para realizar peticiones HTTP
+        async function makeRequest(url, method, data) {
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                return await response.json();
+            } catch (error) {
+                console.error('Error en la petición:', error);
+                throw new Error('Error de conexión con el servidor');
+            }
+        }
+        
+        // Registro de usuario
+        document.getElementById('register-btn').addEventListener('click', async function() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+            
+            // Ocultar errores previos
+            hideError('reg-username-error');
+            hideError('reg-email-error');
+            hideError('reg-password-error');
+            hideError('reg-confirm-password-error');
+            hideError('register-error');
+            document.getElementById('register-response').style.display = 'none';
+            
+            // Validaciones básicas
+            if (!username) {
+                showError('reg-username-error', 'El usuario es requerido');
+                return;
+            }
+            
+            if (!email) {
+                showError('reg-email-error', 'El email es requerido');
+                return;
+            } else if (!/\S+@\S+\.\S+/.test(email)) {
+                showError('reg-email-error', 'Formato de email inválido');
+                return;
+            }
+            
+            if (!password) {
+                showError('reg-password-error', 'La contraseña es requerida');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showError('reg-confirm-password-error', 'Las contraseñas no coinciden');
+                return;
+            }
+            
+            setLoading(this, true);
+            
+            try {
+                // Realizar petición al servidor
+                const response = await makeRequest(`${API_URL}/auth/register`, 'POST', {
+                    username,
+                    email,
+                    password
+                });
+                
+                // Mostrar respuesta
+                showResponse('register-response', response);
+                
+                if (response.success) {
+                    showSuccess('register-success', '¡Usuario registrado correctamente!');
+                    // Limpiar formulario
+                    document.getElementById('register-form').reset();
+                    // Cambiar a pestaña de login
+                    tabs[0].click();
+                } else {
+                    showError('register-error', response.message || 'Error en el registro');
+                }
+            } catch (error) {
+                showError('register-error', error.message);
+            } finally {
+                setLoading(this, false);
+            }
+        });
+        
+        // Login de usuario
+        document.getElementById('login-btn').addEventListener('click', async function() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Ocultar errores previos
+            hideError('login-username-error');
+            hideError('login-password-error');
+            hideError('login-error');
+            document.getElementById('login-response').style.display = 'none';
+            
+            // Validaciones básicas
+            if (!username) {
+                showError('login-username-error', 'El usuario es requerido');
+                return;
+            }
+            
+            if (!password) {
+                showError('login-password-error', 'La contraseña es requerida');
+                return;
+            }
+            
+            setLoading(this, true);
+            
+            try {
+                // Realizar petición al servidor
+                const response = await makeRequest(`${API_URL}/auth/login`, 'POST', {
+                    username,
+                    password
+                });
+                
+                // Mostrar respuesta
+                showResponse('login-response', response);
+                
+                if (response.success) {
+                    showSuccess('login-success', '¡Login exitoso!');
+                    // Guardar token JWT
+                    localStorage.setItem('jwtToken', response.token);
+                    updateJWTInfo(response.token);
+                } else {
+                    showError('login-error', response.message || 'Error en el login');
+                }
+            } catch (error) {
+                showError('login-error', error.message);
+            } finally {
+                setLoading(this, false);
+            }
+        });
+        
+        // Actualizar información del JWT
+        function updateJWTInfo(token) {
+            const jwtInfo = document.getElementById('jwt-info');
+            const jwtTokenElement = document.getElementById('jwt-token');
+            const decodeBtn = document.getElementById('decode-jwt');
+            
+            if (token) {
+                jwtInfo.innerHTML = `
+                    <p>Token JWT almacenado correctamente.</p>
+                    <p><strong>Longitud:</strong> ${token.length} caracteres</p>
+                `;
+                jwtTokenElement.textContent = token;
+                jwtTokenElement.style.display = 'block';
+                decodeBtn.style.display = 'block';
+            } else {
+                jwtInfo.innerHTML = '<p>No hay token JWT almacenado. Inicia sesión para obtener uno.</p>';
+                jwtTokenElement.style.display = 'none';
+                decodeBtn.style.display = 'none';
+            }
+        }
+        
+        // Decodificar JWT (solo la parte del payload)
+        document.getElementById('decode-jwt').addEventListener('click', function() {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) return;
+            
+            try {
+                // El token JWT tiene 3 partes separadas por puntos
+                const payloadBase64 = token.split('.')[1];
+                // Base64 decode y parse JSON
+                const payload = JSON.parse(atob(payloadBase64));
+                
+                document.getElementById('jwt-payload').textContent = JSON.stringify(payload, null, 2);
+                document.getElementById('jwt-payload').style.display = 'block';
+            } catch (error) {
+                console.error('Error decodificando JWT:', error);
+            }
+        });
+        
+        // Al cargar la página, verificar si hay un token almacenado
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('jwtToken');
+            updateJWTInfo(token);
+            
+            // Cargar configuración guardada
+            const savedApiUrl = localStorage.getItem('apiUrl');
+            const savedJwtSecret = localStorage.getItem('jwtSecret');
+            
+            if (savedApiUrl) {
+                document.getElementById('api-url').value = savedApiUrl;
+                API_URL = savedApiUrl;
+            }
+            
+            if (savedJwtSecret) {
+                document.getElementById('jwt-secret').value = savedJwtSecret;
+                JWT_SECRET = savedJwtSecret;
+            }
+        });
+    </script>
 </html>
